@@ -32,7 +32,6 @@ export default function Home() {
       const axiosResponse = await axios.post(API_ENDPOINT, formData, {
         headers: headers
       })
-      console.log(axiosResponse)
       setGeneratedImage(axiosResponse.data![0]['image'])
 
       // resetting error and loading states

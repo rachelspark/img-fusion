@@ -1,6 +1,6 @@
 import io
 from fastapi import File, UploadFile, FastAPI
-from modal import method, Image, Stub, web_endpoint, asgi_app
+from modal import method, Image, Stub, asgi_app
 
 app = FastAPI()
 stub = Stub("img-fusion")
