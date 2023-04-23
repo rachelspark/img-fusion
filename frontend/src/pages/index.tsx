@@ -5,7 +5,7 @@ import Image from 'next/image'
 
 const inter = Inter({ subsets: ['latin'] })
 
-const API_ENDPOINT = "https://rachelspark--img-fusion-generate-image-dev.modal.run";
+const API_ENDPOINT = "https://rachelspark--img-fusion-fastapi-app.modal.run/generate-image";
 
 export default function Home() {
   const [file1, setFile1] = React.useState<File>();
@@ -33,7 +33,7 @@ export default function Home() {
         headers: headers
       })
       console.log(axiosResponse)
-      setGeneratedImage(axiosResponse.data.image)
+      setGeneratedImage(axiosResponse.data![0]['image'])
 
       // resetting error and loading states
       setLoading(false)
@@ -41,7 +41,7 @@ export default function Home() {
     } catch (e: unknown) {
       setLoading(false)
       if (isAxiosError(e)) {
-        setErrorMessage("Sorry, we're running into a bug. Please try again in a bit!")
+        setErrorMessage("Sorry, we're running into an issue. Please try again in a bit!")
       }
     }
   }

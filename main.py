@@ -1,7 +1,8 @@
 import io
-from fastapi import File, UploadFile
-from modal import method, Image, Stub, web_endpoint 
+from fastapi import File, UploadFile, FastAPI
+from modal import method, Image, Stub, web_endpoint, asgi_app
 
+app = FastAPI()
 stub = Stub("img-fusion")
 
 def download_model():
@@ -58,17 +59,27 @@ class Kandinsky:
         return encoded
 
 @stub.function()
-@web_endpoint(method="POST")
-def generate_image(file1: UploadFile = File(...), file2: UploadFile = File(...)):
-    try:
-        generated_image = Kandinsky().run_model.call(file1, file2)
-        return {"image": generated_image}
-    except Exception as e:
-        print(e)
-        raise e
-    finally:
-        file1.file.close()
-        file2.file.close()
+@asgi_app()
+def fastapi_app():
+    from fastapi import FastAPI, Response
+
+    app = FastAPI()
+    k = Kandinsky()
+
+    @app.post("/generate-image")
+    def generate_image(response: Response, file1: UploadFile = File(...), file2: UploadFile = File(...)):
+        try:
+            response.headers["Access-Control-Allow-Origin"] = "*"
+            generated_image = k.run_model.call(file1, file2)
+            return [{"image": generated_image}]
+        except Exception as e:
+            print(e)
+            raise e
+        finally:
+            file1.file.close()
+            file2.file.close()
+
+    return app
 
 @stub.local_entrypoint()
 def main():
