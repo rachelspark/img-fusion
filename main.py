@@ -80,9 +80,3 @@ def fastapi_app():
             file2.file.close()
 
     return app
-
-@stub.local_entrypoint()
-def main():
-    png_data = Kandinsky().run_model.call()
-    with open("output.png", "wb") as f:
-        f.write(png_data)
