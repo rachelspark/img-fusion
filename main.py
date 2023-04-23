@@ -6,7 +6,6 @@ import modal
 app = FastAPI()
 stub = modal.Stub("img-fusion")
 
-
 image = (
     modal.Image.debian_slim(python_version="3.10")
     .apt_install(["git"])
@@ -71,8 +70,7 @@ class Kandinsky:
 @app.post("/generate-image")
 def generate_image(file1: UploadFile = File(...), file2: UploadFile = File(...)):
     try:
-        k = Kandinsky()
-        generated_image = k.run_model.call(file1, file2)
+        generated_image = Kandinsky().run_model.call(file1, file2)
         return {"image": generated_image}
     except Exception as e:
         print(e)
@@ -88,7 +86,6 @@ def fastapi_app():
 
 @stub.local_entrypoint()
 def main():
-    k = Kandinsky()
-    png_data = k.run_model.call()
+    png_data = Kandinsky().run_model.call()
     with open("output.png", "wb") as f:
         f.write(png_data)
