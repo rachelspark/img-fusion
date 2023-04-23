@@ -5,8 +5,7 @@ import modal
 
 app = FastAPI()
 stub = modal.Stub("img-fusion")
-volume = modal.SharedVolume().persist("kandinsky-cache-vol")
-CACHE_PATH = "/tmp/kandinsky2"
+
 
 image = (
     modal.Image.debian_slim(python_version="3.10")
@@ -36,7 +35,7 @@ app.add_middleware(
 class Kandinsky:
     def __enter__(self):
         from kandinsky2 import get_kandinsky2
-        self.model = get_kandinsky2('cuda', task_type='text2img', cache_dir=CACHE_PATH, model_version='2.1', use_flash_attention=False)
+        self.model = get_kandinsky2('cuda', task_type='text2img', model_version='2.1', use_flash_attention=False)
 
     @modal.method()
     def run_model(self, file1: UploadFile = File(...), file2: UploadFile = File(...)):
@@ -82,7 +81,7 @@ def generate_image(file1: UploadFile = File(...), file2: UploadFile = File(...))
         file1.file.close()
         file2.file.close()
 
-@stub.function(shared_volumes={CACHE_PATH: volume})
+@stub.function()
 @modal.asgi_app()
 def fastapi_app():
     return app
