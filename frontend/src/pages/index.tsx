@@ -5,7 +5,7 @@ import Image from 'next/image'
 
 const inter = Inter({ subsets: ['latin'] })
 
-const API_ENDPOINT = "https://rachelspark--image-fusion-fastapi-app.modal.run/generate-image";
+const API_ENDPOINT = "https://rachelspark--img-fusion-generate-image-dev.modal.run";
 
 export default function Home() {
   const [file1, setFile1] = React.useState<File>();
@@ -84,7 +84,7 @@ export default function Home() {
           )}
         {generatedImage && (
           <div className="m-2 pt-10">
-            <Image src={`data:image/png;base64,${generatedImage}`} alt={''}/>
+            <Image src={`data:image/png;base64,${generatedImage}`} alt={''} width={500} height={500}/>
           </div>
         )}
         </div>

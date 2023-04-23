@@ -1,42 +1,32 @@
 import io
-from fastapi import File, UploadFile, Response, FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-import modal
+from fastapi import File, UploadFile
+from modal import method, Image, Stub, web_endpoint 
 
-app = FastAPI()
-stub = modal.Stub("img-fusion")
+stub = Stub("img-fusion")
+
+def download_model():
+    from kandinsky2 import get_kandinsky2
+    get_kandinsky2('cuda', task_type='text2img', model_version='2.1', use_flash_attention=False)
 
 image = (
-    modal.Image.debian_slim(python_version="3.10")
-    .apt_install(["git"])
+    Image.debian_slim()
+    .apt_install("git")
     .pip_install(
         "opencv-python-headless",
         "git+https://github.com/ai-forever/Kandinsky-2.git",
         "git+https://github.com/openai/CLIP.git",
     )
+    .run_function(download_model, gpu="any")
 )
 stub.image = image
 
-origins = [
-    "http://localhost:3000",
-    "http://localhost:*",
-]
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-@stub.cls(gpu=modal.gpu.A100())
+@stub.cls(gpu="A10G")
 class Kandinsky:
     def __enter__(self):
         from kandinsky2 import get_kandinsky2
         self.model = get_kandinsky2('cuda', task_type='text2img', model_version='2.1', use_flash_attention=False)
 
-    @modal.method()
+    @method()
     def run_model(self, file1: UploadFile = File(...), file2: UploadFile = File(...)):
         """Runs Kandinsky 2 image fuse on two uploaded image files
         Returns another file
@@ -67,7 +57,8 @@ class Kandinsky:
         encoded = base64.b64encode(buf.getvalue())
         return encoded
 
-@app.post("/generate-image")
+@stub.function()
+@web_endpoint(method="POST")
 def generate_image(file1: UploadFile = File(...), file2: UploadFile = File(...)):
     try:
         generated_image = Kandinsky().run_model.call(file1, file2)
@@ -78,11 +69,6 @@ def generate_image(file1: UploadFile = File(...), file2: UploadFile = File(...))
     finally:
         file1.file.close()
         file2.file.close()
-
-@stub.function()
-@modal.asgi_app()
-def fastapi_app():
-    return app
 
 @stub.local_entrypoint()
 def main():
