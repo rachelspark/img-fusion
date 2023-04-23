@@ -1,6 +1,12 @@
+import io
+from fastapi import File, UploadFile, Response, FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 import modal
 
-stub = modal.Stub("image-fusion")
+app = FastAPI()
+stub = modal.Stub("img-fusion")
+volume = modal.SharedVolume().persist("kandinsky-cache-vol")
+CACHE_PATH = "/tmp/kandinsky2"
 
 image = (
     modal.Image.debian_slim(python_version="3.10")
@@ -13,36 +19,77 @@ image = (
 )
 stub.image = image
 
-@stub.function(gpu=modal.gpu.A100())
-def run_model():
-    import sys
-    from io import BytesIO
-    from PIL import Image
-    from kandinsky2 import get_kandinsky2
+origins = [
+    "http://localhost:3000",
+    "http://localhost:*",
+]
 
-    model = get_kandinsky2('cuda', task_type='text2img', model_version='2.1', use_flash_attention=False)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-    img1 = Image.open(sys.path.append("data/arthur.png"))
-    img2 = Image.open(sys.path.append("data/bluesclues.png"))
+@stub.cls(gpu=modal.gpu.A100())
+class Kandinsky:
+    def __enter__(self):
+        from kandinsky2 import get_kandinsky2
+        self.model = get_kandinsky2('cuda', task_type='text2img', cache_dir=CACHE_PATH, model_version='2.1', use_flash_attention=False)
 
-    image_mixed = model.mix_images(
-    [img1, img2], [0.5, 0.5], 
-    num_steps=100, 
-    batch_size=1, 
-    guidance_scale=4, 
-    h=768, 
-    w=768, 
-    sampler='p_sampler', 
-    prior_cf_scale=4, 
-    prior_steps="5",
-)[0]
+    @modal.method()
+    def run_model(self, file1: UploadFile = File(...), file2: UploadFile = File(...)):
+        """Runs Kandinsky 2 image fuse on two uploaded image files
+        Returns another file
+        """
+        import base64
+        from io import BytesIO
+        from PIL import Image
 
-    buf = BytesIO()
-    image_mixed.save(buf, format="PNG")
-    return buf.getvalue()
+        img1_content = file1.file.read()
+        img2_content = file2.file.read()
+        img1 = Image.open(io.BytesIO(img1_content))
+        img2 = Image.open(io.BytesIO(img2_content))
+
+        image_mixed = self.model.mix_images(
+        [img1, img2], [0.5, 0.5], 
+        num_steps=100, 
+        batch_size=1, 
+        guidance_scale=4, 
+        h=500, 
+        w=500, 
+        sampler='p_sampler', 
+        prior_cf_scale=4, 
+        prior_steps="5",
+        )[0]
+
+        buf = BytesIO()
+        image_mixed.save(buf, format="PNG")
+        encoded = base64.b64encode(buf.getvalue())
+        return encoded
+
+@app.post("/generate-image")
+def generate_image(file1: UploadFile = File(...), file2: UploadFile = File(...)):
+    try:
+        k = Kandinsky()
+        generated_image = k.run_model.call(file1, file2)
+        return {"image": generated_image}
+    except Exception as e:
+        print(e)
+        raise e
+    finally:
+        file1.file.close()
+        file2.file.close()
+
+@stub.function(shared_volumes={CACHE_PATH: volume})
+@modal.asgi_app()
+def fastapi_app():
+    return app
 
 @stub.local_entrypoint()
 def main():
-    png_data = run_model.call()
+    k = Kandinsky()
+    png_data = k.run_model.call()
     with open("output.png", "wb") as f:
         f.write(png_data)
