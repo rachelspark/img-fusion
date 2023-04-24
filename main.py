@@ -1,8 +1,7 @@
 import io
-from fastapi import File, UploadFile, FastAPI
+from fastapi import File, UploadFile
 from modal import method, Image, Stub, asgi_app
 
-app = FastAPI()
 stub = Stub("img-fusion")
 
 def download_model():
@@ -30,7 +29,7 @@ class Kandinsky:
     @method()
     def run_model(self, file1: UploadFile = File(...), file2: UploadFile = File(...)):
         """Runs Kandinsky 2 image fuse on two uploaded image files
-        Returns another file
+        Returns output image as base-64 encoded value
         """
         import base64
         from io import BytesIO
