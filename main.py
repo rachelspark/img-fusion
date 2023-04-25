@@ -20,7 +20,7 @@ image = (
 )
 stub.image = image
 
-@stub.cls(gpu="A10G")
+@stub.cls(gpu="A10G", keep_warm=1)
 class Kandinsky:
     def __enter__(self):
         from kandinsky2 import get_kandinsky2
@@ -57,7 +57,7 @@ class Kandinsky:
         encoded = base64.b64encode(buf.getvalue())
         return encoded
 
-@stub.function()
+@stub.function(keep_warm=1)
 @asgi_app()
 def fastapi_app():
     from fastapi import FastAPI, Response
